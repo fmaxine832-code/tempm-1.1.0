@@ -126,6 +126,20 @@ function checkAuth(request: Request, env: Env): boolean {
   return auth === `Bearer ${env.ADMIN_PASSWORD}`;
 }
 
+async function checkAuthFull(request: Request, env: Env): Promise<boolean> {
+  if (checkAuth(request, env)) return true;
+  const auth = request.headers.get("Authorization") || "";
+  if (!auth.startsWith("Bearer ")) return false;
+  const password = auth.slice(7);
+  const storedHash = await getConfig(env.DB, "site_password_hash");
+  if (!storedHash) return false;
+  const data = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+  return hashHex === storedHash;
+}
+
+
 // Return the UTC timestamp of the most recent 11:30 PM Eastern reset
 function getLastEasternReset(): number {
   const now = new Date();
@@ -396,7 +410,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
 
   // GET /api/passwords?tag=ck&page=1&limit=50&start=timestamp&end=timestamp
   if (url.pathname === "/api/passwords" && request.method === "GET") {
-    if (!checkAuth(request, env)) {
+    if (!await checkAuthFull(request, env)) {
       return Response.json({ error: "unauthorized" }, { status: 401, headers });
     }
     const tag = url.searchParams.get("tag") || "";
@@ -427,7 +441,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
   // When called from the generate button, saves as confirmed=0 (no quota consumed, hidden from list).
   // confirmed=1 is set only when the first email arrives.
   if (url.pathname === "/api/passwords" && request.method === "POST") {
-    if (!checkAuth(request, env)) {
+    if (!await checkAuthFull(request, env)) {
       return Response.json({ error: "unauthorized" }, { status: 401, headers });
     }
     const raw = await request.text();
@@ -445,7 +459,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
 
   // DELETE /api/passwords — remove an address entry (admin only)
   if (url.pathname === "/api/passwords" && request.method === "DELETE") {
-    if (!checkAuth(request, env)) {
+    if (!await checkAuthFull(request, env)) {
       return Response.json({ error: "unauthorized" }, { status: 401, headers });
     }
     const raw = await request.text();

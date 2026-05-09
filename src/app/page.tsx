@@ -616,7 +616,7 @@ export default function Home() {
 
   const handleLogin = async () => {
     setLoginError("");
-    const res = await fetch(`${WORKER_URL}/api/admin/login`, {
+    const res = await fetch(`${WORKER_URL}/api/site-login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: tokenInput }),
