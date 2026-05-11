@@ -9,3 +9,8 @@ routes = [
   { pattern = "yourdomain.top/*", zone_name = "yourdomain.top" },
   { pattern = "www.yourdomain.top/*", zone_name = "yourdomain.top" },
 ]
+
+[vars]
+SITE_NAME = "云端接码"
+MAIL_APP_URL = "https://your-app.vercel.app"
+TAGLINE = "免费、自托管的临时邮箱服务"

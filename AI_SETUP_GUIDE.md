@@ -75,6 +75,18 @@ Namecheap API 默认关闭，需要用户手动开启一次。给出以下指引
 
 > **注意**：在 1.2 开始前，先运行 `curl -s https://api.ipify.org` 获取当前 IP，填入上面第④步。
 
+> **⚠️ Namecheap API 不可用时的回退路径**
+>
+> 部分账号（通常是新账号或消费未满 $50 的账号）无法开启 API Access——页面上的开关是灰色的或操作后报错。
+> 遇到此情况，**不要继续尝试 API**，切换为手动流程：
+>
+> 1. 引导用户在 Namecheap 网页手动购买域名（Phase 3 跳过，改为提示用户完成购买后告知域名）。
+> 2. Phase 5（NS 修改）同样改为手动：
+>    - 登录 Namecheap → Domain List → 点域名旁 "Manage" → "Nameservers" 选 "Custom DNS"
+>    - 填入 `$NS1` 和 `$NS2`，保存
+>    - 提示用户完成后告知你，继续 Phase 6
+> 3. 跳过所有 `$NC_USER` / `$NC_API_KEY` 变量的收集，本次部署不需要它们。
+
 ### 1.3 收集其余凭据
 
 ```
@@ -113,6 +125,13 @@ cd worker && npm install && cd ..
 # 检查 wrangler
 npx wrangler --version || npm install -g wrangler
 ```
+
+> **首次使用 Cloudflare Workers 的账号**：第一次部署 Worker 前，Cloudflare 要求注册一个 `workers.dev` 子域名。
+> 如果 `npm run deploy` 报错提示"subdomain not registered"，执行以下命令并按提示选择子域名：
+> ```bash
+> cd worker && npx wrangler subdomain && cd ..
+> ```
+> 完成后重新执行部署命令即可。这是一次性操作，后续部署无需重复。
 
 ---
 
@@ -337,6 +356,16 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routi
 
 Cloudflare 自动添加 MX 和 SPF 记录。
 
+### 6.3 Email Routing 就绪检查清单（按顺序确认，全部通过再进入 Phase 7）
+
+- [ ] **Cloudflare zone 状态为 active**（6.1 已确认）
+- [ ] **Email Routing 已启用**（6.2 API 返回 `success: true`）
+- [ ] **Worker 已部署**（Phase 7.4 完成后回来确认）
+- [ ] **Catch-all 规则已绑定到 Worker**（Phase 7.5 完成后回来确认）
+- [ ] **MX 记录已生效**：`dig MX $DOMAIN +short` 包含 `cloudflare.com`
+
+> Catch-all 规则和 MX 记录检查需等 Phase 7 完成后才能验证，Phase 7 结束后务必回来补充确认。
+
 ---
 
 ## Phase 7：创建 D1 数据库并部署 Worker（全自动）
@@ -386,7 +415,7 @@ crons = ["0 3 * * *"]
 
 [vars]
 ALLOWED_ORIGINS = "http://localhost:3000"
-ADMIN_PASSWORD = "$ADMIN_PASSWORD"
+# ADMIN_PASSWORD 通过 wrangler secret 注入，不写入此文件
 ```
 
 ### 7.3 初始化数据库表结构
@@ -402,6 +431,16 @@ cd worker && npm run deploy && cd ..
 ```
 
 解析输出中的 Worker URL，存入 `$WORKER_URL`。
+
+### 7.4.1 注入 ADMIN_PASSWORD Secret
+
+Worker 部署后立即写入管理员密码（不可在 `wrangler.toml` 明文存放）：
+
+```bash
+echo "$ADMIN_PASSWORD" | cd worker && npx wrangler secret put ADMIN_PASSWORD && cd ..
+```
+
+确认命令输出 `✔ Success! Uploaded secret ADMIN_PASSWORD`。
 
 ### 7.5 绑定 Email Routing Catch-all（必须在 7.4 之后执行）
 
@@ -436,8 +475,10 @@ echo "NEXT_PUBLIC_WORKER_URL=$WORKER_URL" > .env.local
 
 ```bash
 npm install -g vercel
-vercel login
+vercel whoami 2>/dev/null && echo "已登录，跳过 vercel login" || vercel login
 ```
+
+> `vercel whoami` 若已有有效 token 会输出当前账号名；若未登录则自动执行 `vercel login`，避免重复弹出浏览器授权窗口。
 
 告知用户：
 
