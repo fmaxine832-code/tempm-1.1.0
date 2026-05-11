@@ -41,7 +41,7 @@ export default function AdminPage() {
     tagRules: [],
     siteName: "云端接码",
     autoDeleteHours: 24,
-    linkFilter: "",
+    linkFilter: "auth.heygen.com",
     hasSitePassword: false,
   });
   const [newSitePassword, setNewSitePassword] = useState("");
@@ -368,7 +368,7 @@ export default function AdminPage() {
               type="text"
               value={config.linkFilter}
               onChange={(e) => setConfig({ ...config, linkFilter: e.target.value })}
-              placeholder="如：auth.example.com  留空则不提取激活链接"
+              placeholder="如：auth.heygen.com  留空则不提取激活链接"
               className="email-input"
               style={{ textAlign: "left", fontSize: "14px" }}
             />

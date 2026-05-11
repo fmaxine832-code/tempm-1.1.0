@@ -272,7 +272,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
       forwardDomains: forwardRules.map((r) => r.subdomain),
       siteName: siteName || "云端接码",
       autoDeleteHours: parseInt(autoDeleteHours) || 24,
-      linkFilter: linkFilter || "",
+      linkFilter: linkFilter || "auth.heygen.com",
       hasPassword: sitePasswordHash !== "",
     }, { headers });
   }
@@ -350,7 +350,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
         domains, domainsPool2, forwardRules, tagRules,
         siteName: siteName || "云端接码",
         autoDeleteHours: parseInt(autoDeleteHours) || 24,
-        linkFilter: linkFilter || "",
+        linkFilter: linkFilter || "auth.heygen.com",
         hasSitePassword,
       }, { headers });
     }
@@ -493,7 +493,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
       .sort((a, b) => ((b as Record<string, unknown>).timestamp as number) - ((a as Record<string, unknown>).timestamp as number))
       .slice(0, 200);
 
-    const linkFilter = await getConfig(env.DB, "link_filter");
+    const linkFilter = (await getConfig(env.DB, "link_filter")) || "auth.heygen.com";
     const emails = merged.map((row: Record<string, unknown>) => {
       const content = ((row.html_body as string) || "") + " " + ((row.text_body as string) || "");
       let activationLink: string | null = null;
@@ -747,7 +747,7 @@ export default {
     ).bind(generateId(), accountAddress, message.from, subject, textBody, htmlBody, now).run();
 
     // Update last_link_received_at if email contains a link matching linkFilter
-    const linkFilter = await getConfig(env.DB, "link_filter");
+    const linkFilter = (await getConfig(env.DB, "link_filter")) || "auth.heygen.com";
     if (linkFilter) {
       const content = htmlBody + textBody;
       const re = /https?:\/\/[^\s"'<>)]+/g;
